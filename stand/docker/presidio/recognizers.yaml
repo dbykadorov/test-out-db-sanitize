@@ -1,0 +1,78 @@
+# Распознаватели. Русские идентификаторы описаны выражениями: у них жёсткая
+# форма, и модель для них не нужна. Имена и адреса остаются за NER - там
+# выражение не работает в принципе.
+supported_languages:
+  - en
+  - ru
+global_regex_flags: 26
+
+recognizers:
+  - name: EmailRecognizer
+    supported_languages:
+      - en
+      - ru
+    type: predefined
+
+  - name: IpRecognizer
+    supported_languages:
+      - en
+      - ru
+    type: predefined
+
+  - name: UrlRecognizer
+    supported_languages:
+      - en
+      - ru
+    type: predefined
+
+  - name: CreditCardRecognizer
+    supported_languages:
+      - en
+      - ru
+    type: predefined
+
+  - name: RuPhoneRecognizer
+    supported_language: ru
+    supported_entity: PHONE_NUMBER
+    type: custom
+    patterns:
+      - name: ru_phone_plus7
+        regex: "\\+7\\d{10}"
+        score: 0.85
+      - name: ru_phone_8
+        regex: "\\b8\\d{10}\\b"
+        score: 0.6
+    context: [телефон, тел, звонить, перезвонить, моб]
+
+  - name: RuInnRecognizer
+    supported_language: ru
+    supported_entity: RU_INN
+    type: custom
+    patterns:
+      - name: inn_person
+        regex: "\\b\\d{12}\\b"
+        score: 0.5
+      - name: inn_legal
+        regex: "\\b\\d{10}\\b"
+        score: 0.35
+    context: [инн, налогоплательщик]
+
+  - name: RuSnilsRecognizer
+    supported_language: ru
+    supported_entity: RU_SNILS
+    type: custom
+    patterns:
+      - name: snils
+        regex: "\\b\\d{3}-\\d{3}-\\d{3}\\s\\d{2}\\b"
+        score: 0.9
+    context: [снилс, пенсионн]
+
+  - name: RuPassportRecognizer
+    supported_language: ru
+    supported_entity: RU_PASSPORT
+    type: custom
+    patterns:
+      - name: passport
+        regex: "\\b\\d{4}\\s\\d{6}\\b"
+        score: 0.6
+    context: [паспорт, серия, номер]

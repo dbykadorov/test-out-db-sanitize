@@ -1,0 +1,227 @@
+# Стенд проверки.
+#
+# Девять контейнеров, из которых семь - само решение, а два вспомогательных:
+# источник с синтетической прод-базой и приёмник под санитарную выгрузку.
+# Полный контур решения - девять сервисов; хранилище секретов и провайдер
+# идентичности заменены заглушками за теми же интерфейсами
+# - см. README, раздел «Границы и честные оговорки».
+#
+# Зоны данных разведены сетями, а не договорённостью: контейнер API заявок
+# подключён только к сети контура управления и физически не может обратиться
+# ни к источнику, ни к результату. Это делает утверждение раздела 2
+# архитектуры проверяемым командой `docker network inspect`.
+
+name: sanitize-stand
+
+networks:
+  data:
+  control:
+
+volumes:
+  # Рабочая зона прогона и область публикации - разные тома, а не разные
+  # каталоги одного. Так разграничение доступа видно в конфигурации, а не
+  # держится на правах внутри общего тома.
+  published:
+  staging-data:
+  source-data:
+  target-data:
+  control-data:
+  runs:
+
+services:
+
+  # --- Плоскость данных -----------------------------------------------------
+
+  worker:
+    build:
+      context: ..
+      dockerfile: stand/docker/worker.Dockerfile
+      # Сборка идёт в сети хоста: в bridge-сети DNS отдаёт для nuget.org
+      # только IPv6, маршрута до него нет, и восстановление пакетов висит
+      # до таймаута вместо того, чтобы честно упасть.
+      network: host
+    image: sanitize-worker:local
+    # Свои источники подключаются переменными из .env - на них ссылается
+    # каталог контура. Файла может не быть: тогда шаблонные записи каталога
+    # просто пропускаются, и работает демонстрационный источник.
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      source-db: {condition: service_healthy}
+      target-db: {condition: service_healthy}
+      control-db: {condition: service_healthy}
+      staging-db: {condition: service_healthy}
+      # Детектор обязателен, а не желателен: без него текстовые колонки
+      # считаются НЕИЗМЕРЕННЫМИ и уходят человеку, и прогон встаёт.
+      # «Не смотрели» - это не «чисто».
+      presidio: {condition: service_healthy}
+    environment:
+      # Строк подключения к данным здесь нет: воркер берёт их из каталога
+      # контура по идентификатору из заявки. Так один контур обслуживает
+      # несколько источников, а заказчик выбирает источник по имени.
+      SANITIZE_CATALOG_FILE: "/etc/sanitize/catalog.json"
+      # Промежуточная база рабочей зоны: сюда разворачивается чужой дамп
+      # перед анализом. Там лежат исходные персональные данные, поэтому
+      # она живёт в плоскости данных и стирается перед каждой загрузкой.
+      SANITIZE_STAGING_DSN: "Host=staging-db;Port=5432;Username=postgres;Password=staging;Database=staging"
+      SANITIZE_CONTROL_DSN: "Host=control-db;Port=5432;Username=postgres;Password=control;Database=control"
+      SANITIZE_PRESIDIO_URL: "http://presidio:3000"
+      SANITIZE_ARTIFACT_FILE: "/etc/sanitize/artifacts/ru-v1.json"
+      SANITIZE_APPROVALS_FILE: "/etc/sanitize/approvals.json"
+      SANITIZE_GROUND_TRUTH_FILE: "/etc/sanitize/ground-truth.json"
+      # Секрет подаётся ПУТЁМ к файлу. Ни переменной со значением,
+      # ни аргументом командной строки: аргументы видны в списке процессов,
+      # а конфигурация переживает прогон (раздел 8).
+      SANITIZE_SECRET_FILE: "/run/secrets/sanitize-run-secret"
+      SANITIZE_WORK_DIR: "/var/lib/sanitize/runs"
+      SANITIZE_JOBS: "4"
+    volumes:
+      - ./secrets/run-secret:/run/secrets/sanitize-run-secret:ro
+      - ./artifacts/model:/etc/sanitize/artifacts:ro
+      - ./config/catalog.json:/etc/sanitize/catalog.json:ro
+      # Входящие дампы заказчика. Только на чтение: прогон разворачивает их
+      # в промежуточную базу, а исходный файл не трогает.
+      - ./inbox:/var/lib/sanitize/inbox:ro
+      - ./demo/approvals.json:/etc/sanitize/approvals.json:ro
+      - ./demo/ground-truth.json:/etc/sanitize/ground-truth.json:ro
+      - runs:/var/lib/sanitize/runs
+      - published:/var/lib/sanitize/published
+    networks: [data, control]
+    command: ["serve"]
+
+  presidio:
+    build:
+      context: ..
+      dockerfile: stand/docker/presidio.Dockerfile
+      network: host
+    image: sanitize-presidio:local
+    networks: [data]
+    # Запуск переопределён намеренно. Штатный entrypoint форкает воркера,
+    # и модели грузятся уже в нём; на первом старте это несколько раз
+    # заканчивалось тем, что воркер не поднимался вовсе - мастер жив,
+    # порт слушает, ответов нет. С `--preload` модели грузятся в мастере
+    # до форка: сбой загрузки становится явным падением, а не тишиной.
+    entrypoint: ["poetry", "run", "gunicorn"]
+    command:
+      - "--workers=1"
+      - "--preload"
+      - "--timeout=600"
+      - "--graceful-timeout=60"
+      - "--bind=0.0.0.0:3000"
+      - "app:create_app()"
+    healthcheck:
+      # Запуск Python с загрузкой модулей сам по себе занимает секунды,
+      # поэтому проверка идёт curl-ом, а не интерпретатором: иначе проверка
+      # измеряет своё собственное время старта, а не готовность сервиса.
+      test: ["CMD-SHELL", "curl -fsS -m 20 http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 25s
+      retries: 40
+      start_period: 120s
+
+  delivery:
+    build:
+      context: ..
+      dockerfile: stand/docker/delivery.Dockerfile
+      network: host
+    image: sanitize-delivery:local
+    depends_on:
+      control-db: {condition: service_healthy}
+    environment:
+      SANITIZE_CONTROL_DSN: "Host=control-db;Port=5432;Username=postgres;Password=control;Database=control"
+      SANITIZE_TARGET_ADMIN_DSN: "Host=target-db;Port=5432;Username=postgres;Password=demo;Database=target"
+      SANITIZE_PUBLISH_DIR: "/var/lib/sanitize/published"
+      ASPNETCORE_URLS: "http://+:8081"
+    volumes:
+      # Смонтирована ТОЛЬКО область публикации и только на чтение. Рабочая
+      # зона прогона сервису выдачи не видна: там рядом с дампом лежит
+      # словарь соответствий.
+      - published:/var/lib/sanitize/published:ro
+    networks: [data, control]
+    ports: ["8081:8081"]
+
+  staging-db:
+    # Рабочая зона: промежуточная база для ветки «готовый дамп». Резервное
+    # копирование ей запрещено намеренно - там исходные персональные данные.
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: staging
+      POSTGRES_DB: staging
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    volumes:
+      - staging-data:/var/lib/postgresql
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d staging"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # --- Вспомогательные контейнеры демонстрации ------------------------------
+
+  source-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: source
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    volumes:
+      - source-data:/var/lib/postgresql
+      - ./demo/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./demo/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    networks: [data]
+    ports: ["55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d source"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  target-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: demo
+      POSTGRES_DB: target
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    volumes:
+      - target-data:/var/lib/postgresql
+    networks: [data]
+    ports: ["55433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d target"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # --- Плоскость управления -------------------------------------------------
+
+  api:
+    build:
+      context: ..
+      dockerfile: stand/docker/api.Dockerfile
+      network: host
+    image: sanitize-api:local
+    depends_on:
+      control-db: {condition: service_healthy}
+    environment:
+      SANITIZE_CONTROL_DSN: "Host=control-db;Port=5432;Username=postgres;Password=control;Database=control"
+      ASPNETCORE_URLS: "http://+:8080"
+    networks: [control]
+    ports: ["8080:8080"]
+
+  control-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: control
+      POSTGRES_DB: control
+    volumes:
+      - control-data:/var/lib/postgresql
+      - ./control:/docker-entrypoint-initdb.d:ro
+    networks: [control]
+    ports: ["55434:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d control"]
+      interval: 3s
+      timeout: 3s
+      retries: 40

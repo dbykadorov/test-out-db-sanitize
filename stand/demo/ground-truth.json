@@ -1,0 +1,41 @@
+{
+  "note": "Объявленные координаты персональных данных демо-базы. Файл существует, чтобы качество РАЗМЕТКИ можно было измерить, а не обсуждать: он говорит, где ПДн есть на самом деле. Полноту ЗАМЕН он не измеряет - её меряет проверка F-4 по значениям источника.",
+  "sensitive": [
+    { "column": "public.clients.email", "type": "email", "trap": "цель внешнего ключа и UNIQUE одновременно: замена обязана быть биекцией" },
+    { "column": "public.clients.full_name", "type": "full_name" },
+    { "column": "public.clients.phone", "type": "phone" },
+    { "column": "public.clients.inn", "type": "inn_person" },
+    { "column": "public.clients.snils", "type": "snils" },
+    { "column": "public.clients.client_code", "type": "passport", "trap": "в имени колонки нет намёка на паспорт: разметка по именам её пропустит, спасает комментарий и формат значений" },
+    { "column": "public.clients.birth_date", "type": "birth_date", "trap": "ПДн не в текстовой колонке" },
+    { "column": "public.clients.city", "type": "city" },
+    { "column": "public.clients.address", "type": "postal_address" },
+    { "column": "public.clients.profile", "type": "document", "trap": "ПДн внутри документа в чужом формате" },
+    { "column": "public.clients.marital_status", "type": "marital_status", "trap": "конечный домен с ПДн: замена обязана остаться внутри ограничения схемы и не остаться собой" },
+    { "column": "public.managers.full_name", "type": "full_name" },
+    { "column": "public.managers.email", "type": "email" },
+    { "column": "public.orders.client_email", "type": "email", "trap": "текстовый внешний ключ: замена обязана совпасть с заменой цели ссылки" },
+    { "column": "public.orders.comment", "type": "free_text", "trap": "вкрапления ПДн в свободном тексте" },
+    { "column": "public.support_tickets.client_email", "type": "email" },
+    { "column": "public.support_tickets.body", "type": "free_text" },
+    { "column": "public.support_tickets.subject", "type": "free_text", "trap": "короткий текст, который выглядит как ФИО для разметки по форме значения" }
+  ],
+  "notSensitive": [
+    { "column": "public.clients.id", "why": "суррогатный ключ" },
+    { "column": "public.clients.segment", "why": "сегмент для отчётности" },
+    { "column": "public.clients.created_at", "why": "техническая метка времени" },
+    { "column": "public.managers.id", "why": "суррогатный ключ" },
+    { "column": "public.managers.department", "why": "подразделение, а не человек: замена была бы ложным срабатыванием" },
+    { "column": "public.orders.id", "why": "суррогатный ключ" },
+    { "column": "public.orders.manager_id", "why": "ссылка на суррогатный ключ" },
+    { "column": "public.orders.amount", "why": "сумма заказа" },
+    { "column": "public.orders.status", "why": "конечный домен БЕЗ ПДн: проверка на ложное срабатывание" },
+    { "column": "public.orders.created_at", "why": "техническая метка времени" },
+    { "column": "public.order_items.order_id", "why": "ссылка на суррогатный ключ" },
+    { "column": "public.order_items.line_no", "why": "номер строки заказа" },
+    { "column": "public.order_items.sku", "why": "артикул товара" },
+    { "column": "public.order_items.qty", "why": "количество" },
+    { "column": "public.support_tickets.id", "why": "суррогатный ключ" },
+    { "column": "public.support_tickets.created_at", "why": "техническая метка времени" }
+  ]
+}

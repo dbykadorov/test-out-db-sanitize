@@ -1,0 +1,46 @@
+{
+  "note": "Каталог источников и приёмников контура. Живёт в плоскости данных и подаётся воркеру только на чтение. Строки подключения есть ТОЛЬКО здесь: через контур управления они не проходят никогда. Значения вида ${ИМЯ} подставляются из окружения - заведите их в stand/.env, чтобы не вписывать учётные данные в файл репозитория. Запись с незаданной переменной пропускается и называется в журнале воркера, а не ломает каталог.",
+  "sources": [
+    {
+      "id": "demo-prod",
+      "kind": "connection",
+      "title": "Демонстрационная прод-реплика",
+      "schemas": [
+        "public"
+      ],
+      "dsn": "Host=source-db;Port=5432;Username=postgres;Password=demo;Database=source"
+    },
+    {
+      "id": "my-source",
+      "kind": "connection",
+      "title": "Ваша база (переменная MY_SOURCE_DSN)",
+      "schemas": [
+        "public"
+      ],
+      "dsn": "${MY_SOURCE_DSN}"
+    },
+    {
+      "id": "my-dump",
+      "kind": "dump",
+      "title": "Ваш дамп (переменная MY_DUMP_FILE)",
+      "schemas": [
+        "public"
+      ],
+      "path": "/var/lib/sanitize/inbox/${MY_DUMP_FILE}"
+    }
+  ],
+  "sinks": [
+    {
+      "id": "demo-sanitary",
+      "kind": "database",
+      "title": "Санитарная база стенда",
+      "dsn": "Host=target-db;Port=5432;Username=postgres;Password=demo;Database=target"
+    },
+    {
+      "id": "my-sink",
+      "kind": "database",
+      "title": "Ваш приёмник (переменная MY_SINK_DSN)",
+      "dsn": "${MY_SINK_DSN}"
+    }
+  ]
+}

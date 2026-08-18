@@ -1,0 +1,36 @@
+[
+  {
+    "column": "public.clients.city",
+    "sensitive": true,
+    "semanticType": "city",
+    "mode": "Typed",
+    "reason": "Разметка сработала только по имени колонки (уверенность 0,55): формы у названия города нет, и подтвердить его значениями нельзя. Владелец подтверждает, что это населённый пункт клиента.",
+    "acceptedBy": "owner@outtech.example"
+  },
+  {
+    "column": "public.clients.address",
+    "sensitive": true,
+    "semanticType": "postal_address",
+    "mode": "Typed",
+    "reason": "Тот же случай: имя колонки говорит, значения формы не имеют. Владелец подтверждает почтовый адрес.",
+    "acceptedBy": "owner@outtech.example"
+  },
+  {
+    "column": "public.clients.profile",
+    "sensitive": true,
+    "semanticType": "document",
+    "mode": "Document",
+    "strategy": "Function",
+    "reason": "Документ в чужом формате. Пути внутри размечены автоматически (contact_person как ФИО, contact_phone как телефон), но по каждому уверенность ниже порога, поэтому решение принимает владелец. Неразмеченные строковые пути затираются.",
+    "acceptedBy": "owner@outtech.example"
+  },
+  {
+    "column": "public.support_tickets.subject",
+    "sensitive": true,
+    "semanticType": "free_text",
+    "mode": "TextWipe",
+    "strategy": "Function",
+    "reason": "Разметка приняла тему обращения за ФИО: форма значения совпадает - два-три слова из букв. Владелец отвергает тип, но не отвергает чувствительность: в теме обращения встречаются имена, поэтому колонка затирается как свободный текст.",
+    "acceptedBy": "owner@outtech.example"
+  }
+]

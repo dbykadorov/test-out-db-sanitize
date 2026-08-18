@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+stand/.env
+
+# Входящие дампы заказчика: файл кладут сюда, в репозиторий он не попадает.
+stand/inbox/*
+!stand/inbox/README.md

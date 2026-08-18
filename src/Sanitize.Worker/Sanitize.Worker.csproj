@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sanitize.Core\Sanitize.Core.csproj" />
+    <ProjectReference Include="..\Sanitize.Adapters.Postgres\Sanitize.Adapters.Postgres.csproj" />
+    <ProjectReference Include="..\Sanitize.Detection.Presidio\Sanitize.Detection.Presidio.csproj" />
+    <ProjectReference Include="..\Sanitize.Rules.Llm\Sanitize.Rules.Llm.csproj" />
+    <ProjectReference Include="..\Sanitize.Dictionary\Sanitize.Dictionary.csproj" />
+    <ProjectReference Include="..\Sanitize.Transformer\Sanitize.Transformer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="8.0.5" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

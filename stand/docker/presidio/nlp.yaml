@@ -1,0 +1,38 @@
+# Английская модель остаётся: база может содержать и латиницу, а снимать
+# уже работающий язык ради нового - потеря без причины.
+nlp_engine_name: spacy
+models:
+  - lang_code: en
+    model_name: en_core_web_lg
+  - lang_code: ru
+    model_name: ru_core_news_sm
+
+ner_model_configuration:
+  model_to_presidio_entity_mapping:
+    PER: PERSON
+    PERSON: PERSON
+    LOC: LOCATION
+    GPE: LOCATION
+    FAC: LOCATION
+    LOCATION: LOCATION
+    ORG: ORGANIZATION
+    ORGANIZATION: ORGANIZATION
+    DATE: DATE_TIME
+    TIME: DATE_TIME
+    NORP: NRP
+
+  low_confidence_score_multiplier: 0.4
+  low_score_entity_names:
+  -
+  labels_to_ignore:
+  - ORGANIZATION
+  - CARDINAL
+  - EVENT
+  - LANGUAGE
+  - LAW
+  - MONEY
+  - ORDINAL
+  - PERCENT
+  - PRODUCT
+  - QUANTITY
+  - WORK_OF_ART
